@@ -11,6 +11,7 @@ pub mod texture;
 pub mod time;
 pub mod text_renderer;
 pub mod sound;
+pub mod event;
 
 pub trait AssetLoader {
     type Asset;

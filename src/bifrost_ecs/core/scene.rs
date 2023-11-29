@@ -1,16 +1,22 @@
 use std::{
     any::TypeId,
     collections::{HashMap, HashSet},
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
 };
 
 use glfw::Context;
 use glow::HasContext;
 
-use crate::bifrost_ecs::{
-    inputs::{keys::Keys, mouse::Mouse, Input},
-    resources::{model::Model, shader::Shader, texture::Texture, Asset, time::Time, text_renderer::TextRenderer, sound::Sound},
-    window::Window,
+use crate::{
+    bifrost_ecs::{
+        inputs::{keys::Keys, mouse::Mouse, Input},
+        resources::{
+            model::Model, shader::Shader, sound::Sound, text_renderer::TextRenderer,
+            texture::Texture, time::Time, Asset,
+        },
+        window::Window,
+    },
+    resources::event::{EventComponent, EventStorage},
 };
 
 use super::{
@@ -35,10 +41,10 @@ macro_rules! system {
     };
 }
 
-
 pub struct Scene {
     pub(crate) entities: Vec<Entity>,
     pub(crate) systems: Arc<Mutex<HashMap<LifetimeSystemExec, Vec<Box<dyn Fn(&mut Scene)>>>>>,
+    pub events: Arc<RwLock<EventStorage>>,
     is_running: bool,
     pub window_container: Window,
     unique_instances: HashSet<TypeId>,
@@ -57,6 +63,7 @@ impl Scene {
             systems: Arc::new(Mutex::new(systems)),
             window_container: Window::new("Prometheus", 800, 600),
             unique_instances: HashSet::new(),
+            events: Arc::new(RwLock::new(EventStorage::new())),
         };
 
         // resources
@@ -218,8 +225,7 @@ impl Scene {
             };
             self.run_system_on_update();
             self.query_single::<&mut Time>().update();
-            
-            
+
             self.window_container.window.swap_buffers();
         }
         self.run_system_on_finish();
@@ -228,5 +234,25 @@ impl Scene {
     pub fn stop(&mut self) {
         self.is_running = false;
         self.window_container.window.set_should_close(true);
+    }
+
+    pub fn add_event<T: EventComponent>(&mut self) -> &mut Self {
+        let events = self.events.clone();
+        events.try_write().unwrap().add_event::<T>();
+        self
+    }
+
+    pub fn send_event<T: EventComponent>(&self, data: T) {
+        let events = self.events.clone();
+        events.try_write().unwrap().send::<T>(data);
+    }
+
+    pub fn read_event<T: EventComponent>(&self) -> Option<T> {
+        self.events.clone().try_write().unwrap().read::<T>()
+    }
+
+    pub fn clear_event<T: EventComponent>(&self) {
+        let events = self.events.clone();
+        events.try_write().unwrap().clear::<T>();
     }
 }

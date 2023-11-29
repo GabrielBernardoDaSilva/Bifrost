@@ -3,12 +3,13 @@ use bifrost_ecs::{
         components::graphics::{material::Material, quad::Quad, sprite_renderer::SpriteRenderer},
         systems::{graphics::render_sprite, physics::collision_aabb},
     },
-    core::{scene::Scene, lifetime_system_exec::LifetimeSystemExec},
+    core::{component::AsAny, lifetime_system_exec::LifetimeSystemExec, scene::Scene},
     inputs::{keys::Keys, Input},
     resources::{
-        shader::Shader, sound::Sound, text_renderer::TextRenderer, texture::Texture, time::Time,
-        Asset,
-    }, system,
+        event::EventComponent, shader::Shader, sound::Sound, text_renderer::TextRenderer,
+        texture::Texture, time::Time, Asset,
+    },
+    system,
 };
 use glfw::Key;
 use nalgebra_glm as glm;
@@ -38,6 +39,21 @@ enum GameState {
 #[derive(Debug)]
 struct GameStateSystem(GameState);
 
+#[derive(Debug)]
+struct CollisionEvent(glm::Vec4);
+
+impl EventComponent for CollisionEvent {}
+
+impl AsAny for CollisionEvent {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+}
+
 fn main() {
     let mut scene = Scene::new();
     scene
@@ -46,6 +62,7 @@ fn main() {
             winner: None,
             amount_to_wait: 5.0,
         },))
+        .add_event::<CollisionEvent>()
         .add_systems(system!(
             (load_assets, LifetimeSystemExec::OnBegin),
             (setup_shader_projection, LifetimeSystemExec::OnBegin),
@@ -59,6 +76,7 @@ fn main() {
             (render_sprite, LifetimeSystemExec::OnUpdate),
             (ball_movement, LifetimeSystemExec::OnUpdate),
             (ball_collision, LifetimeSystemExec::OnUpdate),
+            (ball_collision_event, LifetimeSystemExec::OnUpdate),
             (check_winner, LifetimeSystemExec::OnUpdate),
             (render_text, LifetimeSystemExec::OnUpdate),
             (check_if_is_wait_screen, LifetimeSystemExec::OnUpdate),
@@ -304,17 +322,38 @@ fn ball_movement(scene: &mut Scene) {
     }
 }
 
+fn ball_collision_event(scene: &mut Scene) {
+    let game_state = scene.query_single::<&mut GameStateSystem>();
+    if game_state.0 == GameState::Menu {
+        return;
+    }
+
+    let last_item = scene.read_event::<CollisionEvent>();
+
+    if let Some(event) = last_item {
+        let mut ball_query = scene.query::<(&mut SpriteRenderer, &Name, &mut Velocity)>();
+        let sound = scene.query_single::<&Asset<Sound>>().get("pong").unwrap();
+        for (_, (sprite, name, velocity)) in ball_query.iter_mut() {
+            if name.0 == "Ball" {
+                velocity.1 *= -1.0;
+                velocity.0 = (rand::random::<f32>() * 100.0) - 50.0;
+                sprite.material.color = event.0;
+                sound.play();
+            }
+        }
+    }
+}
+
 fn ball_collision(scene: &mut Scene) {
     let game_state = scene.query_single::<&mut GameStateSystem>();
     if game_state.0 == GameState::Menu {
         return;
     }
+
     let mut ball_query = scene.query::<(&mut SpriteRenderer, &Name, &mut Velocity)>();
     let mut query = scene.query::<(&mut SpriteRenderer, &Name)>();
 
-    let sound = scene.query_single::<&Asset<Sound>>().get("pong").unwrap();
-
-    for (id, (sprite, name, velocity)) in ball_query.iter_mut() {
+    for (id, (sprite, name, _)) in ball_query.iter_mut() {
         if name.0 == "Ball" {
             for (id2, (sprite2, name2)) in query.iter_mut() {
                 if id == id2 {
@@ -322,10 +361,7 @@ fn ball_collision(scene: &mut Scene) {
                 }
                 if name2.0 == "Block1" || name2.0 == "Block2" {
                     if collision_aabb(sprite, sprite2) {
-                        sound.play();
-                        sprite.material.color = sprite2.material.color;
-                        velocity.1 *= -1.0;
-                        velocity.0 = (rand::random::<f32>() * 100.0) - 50.0;
+                        scene.send_event(CollisionEvent(sprite2.material.color));
                     }
                 }
             }
@@ -338,7 +374,6 @@ fn move_paddle_player(scene: &mut Scene) {
     if game_state.0 == GameState::Menu {
         return;
     }
-
     let mut paddle_query = scene.query::<(&mut SpriteRenderer, &Name, &PaddleVelocity)>();
     let time = scene.query_single::<&Time>();
     for (_, (sprite, name, paddle_velocity)) in paddle_query.iter_mut() {
