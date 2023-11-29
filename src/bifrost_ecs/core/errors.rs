@@ -115,3 +115,80 @@ impl Error for ComponentAlreadyExists {}
 impl Error for ComponentNotFounded {}
 impl Error for ComponentAlreadyBorrowed {}
 impl Error for ComponentUnableDowncast{}
+
+
+
+
+
+pub enum ArchetypeError{
+    EntityNotFoundedError(EntityNotFounded),
+    EntityAlreadyHaveComponentError(EntityAlreadyHaveComponent),
+}
+
+
+pub struct EntityNotFounded(u32);
+pub struct EntityAlreadyHaveComponent(u32, String);
+
+impl EntityNotFounded{
+    pub fn new(entity_id: u32) -> Self{
+        Self(entity_id)
+    }
+}
+
+impl EntityAlreadyHaveComponent{
+    pub fn new(entity_id: u32, component_name: String) -> Self{
+        Self(entity_id, component_name)
+    }
+}
+
+impl ArchetypeError{
+    pub fn entity_not_founded(entity_id: u32) -> Self{
+        Self::EntityNotFoundedError(EntityNotFounded::new(entity_id))
+    }
+}
+
+impl Display for EntityNotFounded{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entity {} not founded", self.0)
+    }
+}
+
+impl Debug for EntityNotFounded{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entity {} not founded", self.0)
+    }
+}
+
+impl Display for EntityAlreadyHaveComponent{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entity {} already have component {}", self.0, self.1)
+    }
+}
+
+impl Debug for EntityAlreadyHaveComponent{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Entity {} already have component {}", self.0, self.1)
+    }
+}
+
+
+impl Display for ArchetypeError{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArchetypeError::EntityNotFoundedError(e) => write!(f, "{}", e),
+            ArchetypeError::EntityAlreadyHaveComponentError(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl Debug for ArchetypeError{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ArchetypeError::EntityNotFoundedError(e) => write!(f, "{:?}", e),
+            ArchetypeError::EntityAlreadyHaveComponentError(e) => write!(f, "{:?}", e),
+        }
+    }
+}
+
+
+impl Error for ArchetypeError{}

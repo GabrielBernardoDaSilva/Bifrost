@@ -7,7 +7,7 @@ use crate::bifrost_ecs::{
 
 use nalgebra_glm as glm;
 
-pub fn render_sprite(scene: &mut Scene) {
+pub fn render_sprite(scene: &Scene) {
     let gl = &scene.window_container.gl;
     let query_sprite = scene.query::<(&mut SpriteRenderer,)>();
     for (_, (sprite,)) in query_sprite.iter() {

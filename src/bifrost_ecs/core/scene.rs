@@ -20,14 +20,16 @@ use crate::{
 };
 
 use super::{
+    archetype::{self, Archetype},
     component::{Component, ComponentBundle},
-    entity::{Entity, EntityId},
+    entity::{Entity, EntityId, FetchItem},
     errors::{ComponentError, ComponentNotFounded},
     lifetime_system_exec::LifetimeSystemExec,
     query::{Fetch, Query, QueryFetched},
 };
 
-pub type SystemFunc = (Box<dyn Fn(&mut Scene)>, LifetimeSystemExec);
+pub type SystemFunc = (Box<dyn Fn(&Scene)>, LifetimeSystemExec);
+pub type MutSystemFunc = (Box<dyn FnMut(&mut Scene)>, LifetimeSystemExec);
 #[macro_export]
 macro_rules! system {
     ($(($func_name: ident, $lifetime_system_exec: expr)),*) => {
@@ -40,10 +42,23 @@ macro_rules! system {
         }
     };
 }
+#[macro_export]
+macro_rules! system_mut {
+    ($(($func_name: ident, $lifetime_system_exec: expr)),*) => {
+        {
+
+            let v: Vec<$crate::core::scene::MutSystemFunc> = vec![
+                $((Box::new($func_name),$lifetime_system_exec),)*
+            ];
+            v
+        }
+    };
+}
 
 pub struct Scene {
-    pub(crate) entities: Vec<Entity>,
-    pub(crate) systems: Arc<Mutex<HashMap<LifetimeSystemExec, Vec<Box<dyn Fn(&mut Scene)>>>>>,
+    pub(crate) archetype: Arc<RwLock<Archetype>>,
+    pub(crate) systems: Arc<Mutex<HashMap<LifetimeSystemExec, Vec<Box<dyn Fn(&Scene)>>>>>,
+    pub(crate) systems_mut: Arc<Mutex<HashMap<LifetimeSystemExec, Vec<Box<dyn FnMut(&mut Scene)>>>>>,
     pub events: Arc<RwLock<EventStorage>>,
     is_running: bool,
     pub window_container: Window,
@@ -57,10 +72,17 @@ impl Scene {
         systems.insert(LifetimeSystemExec::OnUpdate, Vec::new());
         systems.insert(LifetimeSystemExec::OnFinish, Vec::new());
 
+
+        let mut systems_mut = HashMap::new();
+        systems_mut.insert(LifetimeSystemExec::OnBegin, Vec::new());
+        systems_mut.insert(LifetimeSystemExec::OnUpdate, Vec::new());
+        systems_mut.insert(LifetimeSystemExec::OnFinish, Vec::new());
+
         let mut scene = Self {
-            entities: Vec::new(),
+            archetype: Arc::new(RwLock::new(Archetype::new())),
             is_running: false,
             systems: Arc::new(Mutex::new(systems)),
+            systems_mut: Arc::new(Mutex::new(systems_mut)),
             window_container: Window::new("Prometheus", 800, 600),
             unique_instances: HashSet::new(),
             events: Arc::new(RwLock::new(EventStorage::new())),
@@ -96,18 +118,27 @@ impl Scene {
     }
 
     pub fn query_single<'a, T: Fetch<'a>>(&'a self) -> T::RawItem {
-        <T>::fetch_single(self)
+        let archetype_arc = self.archetype.clone();
+        let mut read = archetype_arc.try_read().unwrap();
+        let archetype = read.inner();
+        let archetype = unsafe { std::mem::transmute::<&Archetype, &'a Archetype>(archetype) };
+        archetype.query_single::<T>()
     }
 
     pub fn query<'a, T: Query<'a>>(&'a self) -> QueryFetched<T::Item> {
-        <T>::get_components_in_all_entities(self)
+        let archetype_arc = self.archetype.clone();
+        let mut read = archetype_arc.try_read().unwrap();
+        let archetype = read.inner();
+        let archetype = unsafe { std::mem::transmute::<&Archetype, &'a Archetype>(archetype) };
+        archetype.query::<T>()
     }
 
-    pub fn spawn(&mut self, cb: impl ComponentBundle) -> &mut Self {
-        let mut e = Entity::new(self.entities.len() as u32);
+    pub fn spawn(&self, cb: impl ComponentBundle) {
+        let archetype_arc = self.archetype.clone();
+        let mut archetype = archetype_arc.try_write().unwrap();
+        let mut e = Entity::new(archetype.len() as u32);
         e.add_components(&self.unique_instances, cb);
-        self.entities.push(e);
-        self
+        archetype.spawn(e);
     }
 
     pub fn spawn_batch(&mut self, cbs: Vec<impl ComponentBundle>) -> &mut Self {
@@ -118,42 +149,48 @@ impl Scene {
     }
 
     pub fn remove_entity(&mut self, entity_id: EntityId) {
-        self.entities.retain(|e| e.id != entity_id);
+        self.archetype
+            .clone()
+            .try_write()
+            .unwrap()
+            .remove_entity(entity_id);
     }
 
     pub fn remove_component_from_entity<T: Component>(&mut self, entity_id: EntityId) {
-        if let Some(entity) = self.entities.iter_mut().find(|e| e.id == entity_id) {
-            entity.remove_component::<T>();
-        }
+        self.archetype
+            .clone()
+            .try_write()
+            .unwrap()
+            .remove_component_from_entity::<T>(entity_id);
     }
 
-    pub fn add_components_to_entity(
-        &mut self,
-        entity_id: EntityId,
-        component: impl ComponentBundle,
-    ) {
-        if let Some(entity) = self.entities.iter_mut().find(|e| e.id == entity_id) {
-            entity.add_components(&self.unique_instances, component);
-        }
-    }
+    // pub fn add_components_to_entity(
+    //     &mut self,
+    //     entity_id: EntityId,
+    //     component: impl ComponentBundle,
+    // ) {
+    //     if let Some(entity) = self.entities.iter_mut().find(|e| e.id == entity_id) {
+    //         entity.add_components(&self.unique_instances, component);
+    //     }
+    // }
 
-    pub fn add_component_to_entity<T: Component>(
-        &mut self,
-        entity_id: EntityId,
-        component: T,
-    ) -> Result<(), ComponentError> {
-        if let Some(entity) = self.entities.iter_mut().find(|e| e.id == entity_id) {
-            entity.add_component(component)
-        } else {
-            Err(ComponentError::ComponentNotFoundedError(
-                ComponentNotFounded::new::<T>(),
-            ))
-        }
-    }
+    // pub fn add_component_to_entity<T: Component>(
+    //     &mut self,
+    //     entity_id: EntityId,
+    //     component: T,
+    // ) -> Result<(), ComponentError> {
+    //     if let Some(entity) = self.entities.iter_mut().find(|e| e.id == entity_id) {
+    //         entity.add_component(component)
+    //     } else {
+    //         Err(ComponentError::ComponentNotFoundedError(
+    //             ComponentNotFounded::new::<T>(),
+    //         ))
+    //     }
+    // }
 
     pub fn add_system(
         &mut self,
-        system: impl Fn(&mut Scene) + 'static,
+        system: impl Fn(&Scene) + 'static,
         exec: LifetimeSystemExec,
     ) -> &mut Self {
         self.systems
@@ -177,11 +214,44 @@ impl Scene {
         self
     }
 
+    pub fn add_mut_system(
+        &mut self,
+        system: impl FnMut(&mut Scene) + 'static,
+        exec: LifetimeSystemExec,
+    ) -> &mut Self {
+        self.systems_mut
+            .lock()
+            .unwrap()
+            .get_mut(&exec)
+            .unwrap()
+            .push(Box::new(system));
+        self
+    }
+
+    pub fn add_mut_systems(&mut self, systems: Vec<MutSystemFunc>) -> &mut Self {
+        for (system, exec) in systems {
+            self.systems_mut
+                .lock()
+                .unwrap()
+                .get_mut(&exec)
+                .unwrap()
+                .push(system);
+        }
+        self
+    }
+
     fn run_system_on_begin(&mut self) {
         let systems = self.systems.clone();
         let lock = systems.lock().unwrap();
         let systems = lock.get(&LifetimeSystemExec::OnBegin).unwrap();
         for system in systems {
+            system(self);
+        }
+
+        let systems_mut = self.systems_mut.clone();
+        let mut lock = systems_mut.lock().unwrap();
+        let system = lock.get_mut(&LifetimeSystemExec::OnBegin).unwrap();
+        for system in system {
             system(self);
         }
     }
@@ -193,6 +263,14 @@ impl Scene {
         for system in system {
             system(self);
         }
+        
+
+        let systems_mut = self.systems_mut.clone();
+        let mut lock = systems_mut.lock().unwrap();
+        let system = lock.get_mut(&LifetimeSystemExec::OnUpdate).unwrap();
+        for system in system {
+            system(self);
+        }
     }
 
     fn run_system_on_finish(&mut self) {
@@ -200,6 +278,13 @@ impl Scene {
         let lock = systems.lock().unwrap();
         let systems = lock.get(&LifetimeSystemExec::OnFinish).unwrap();
         for system in systems {
+            system(self);
+        }
+
+        let systems_mut = self.systems_mut.clone();
+        let mut lock = systems_mut.lock().unwrap();
+        let system = lock.get_mut(&LifetimeSystemExec::OnFinish).unwrap();
+        for system in system {
             system(self);
         }
     }

@@ -9,7 +9,7 @@ use bifrost_ecs::{
         event::EventComponent, shader::Shader, sound::Sound, text_renderer::TextRenderer,
         texture::Texture, time::Time, Asset,
     },
-    system,
+    system, system_mut,
 };
 use glfw::Key;
 use nalgebra_glm as glm;
@@ -56,12 +56,14 @@ impl AsAny for CollisionEvent {
 
 fn main() {
     let mut scene = Scene::new();
+    scene.spawn((GameStateSystem(GameState::Menu),));
+
+    scene.spawn((GameScore {
+        winner: None,
+        amount_to_wait: 5.0,
+    },));
+
     scene
-        .spawn((GameStateSystem(GameState::Menu),))
-        .spawn((GameScore {
-            winner: None,
-            amount_to_wait: 5.0,
-        },))
         .add_event::<CollisionEvent>()
         .add_systems(system!(
             (load_assets, LifetimeSystemExec::OnBegin),
@@ -69,8 +71,7 @@ fn main() {
             (create_sprites, LifetimeSystemExec::OnBegin)
         ))
         .add_systems(system!(
-            (control_game_state, LifetimeSystemExec::OnUpdate),
-            (draw_menu, LifetimeSystemExec::OnUpdate),
+            // (draw_menu, LifetimeSystemExec::OnUpdate),
             (occlusion_sprites, LifetimeSystemExec::OnUpdate),
             (move_paddle_player, LifetimeSystemExec::OnUpdate),
             (render_sprite, LifetimeSystemExec::OnUpdate),
@@ -80,33 +81,36 @@ fn main() {
             (check_winner, LifetimeSystemExec::OnUpdate),
             (render_text, LifetimeSystemExec::OnUpdate),
             (check_if_is_wait_screen, LifetimeSystemExec::OnUpdate),
-            (set_fps_in_window_title, LifetimeSystemExec::OnUpdate),
             (water_mark, LifetimeSystemExec::OnUpdate)
+        ))
+        .add_mut_systems(system_mut!(
+            (control_game_state, LifetimeSystemExec::OnUpdate),
+            (set_fps_in_window_title, LifetimeSystemExec::OnUpdate)
         ));
 
     scene.run_forever();
 }
 
-fn water_mark(scene: &mut Scene) {
+fn water_mark(scene: &Scene) {
     let text_renderer = scene.query_single::<&mut Asset<TextRenderer>>();
     let text_renderer = text_renderer.get("Antonio-Regular").unwrap();
-    text_renderer.render_text(
-        scene,
-        "Bifrost ECS",
-        10.0,
-        575.0,
-        0.9,
-        glm::vec4(0.1, 0.3, 1.0, 1.0),
-    );
+    // text_renderer.render_text(
+    //     scene,
+    //     "Bifrost ECS",
+    //     10.0,
+    //     575.0,
+    //     0.9,
+    //     glm::vec4(0.1, 0.3, 1.0, 1.0),
+    // );
 
-    text_renderer.render_text(
-        scene,
-        "Press esc to exit",
-        700.0,
-        580.0,
-        0.5,
-        glm::vec4(1.0, 1.0, 1.0, 1.0),
-    );
+    // text_renderer.render_text(
+    //     scene,
+    //     "Press esc to exit",
+    //     700.0,
+    //     580.0,
+    //     0.5,
+    //     glm::vec4(1.0, 1.0, 1.0, 1.0),
+    // );
 }
 
 fn set_fps_in_window_title(scene: &mut Scene) {
@@ -132,34 +136,34 @@ fn control_game_state(scene: &mut Scene) {
     }
 }
 
-fn draw_menu(scene: &mut Scene) {
-    if scene.query_single::<&GameStateSystem>().0 != GameState::Menu {
-        return;
-    }
+// fn draw_menu(scene: &Scene) {
+//     if scene.query_single::<&GameStateSystem>().0 != GameState::Menu {
+//         return;
+//     }
 
-    let text_renderer = scene.query_single::<&mut Asset<TextRenderer>>();
-    let text_renderer = text_renderer.get("Antonio-Regular").unwrap();
-    let time = scene.query_single::<&Time>().clone();
-    text_renderer.render_text(
-        scene,
-        "Pong",
-        380.0,
-        350.0,
-        1.1,
-        glm::vec4(1.0, 1.0, 1.0, 1.0),
-    );
+//     let text_renderer = scene.query_single::<&mut Asset<TextRenderer>>();
+//     let text_renderer = text_renderer.get("Antonio-Regular").unwrap();
+//     let time = scene.query_single::<&Time>().clone();
+//     text_renderer.render_text(
+//         scene,
+//         "Pong",
+//         380.0,
+//         350.0,
+//         1.1,
+//         glm::vec4(1.0, 1.0, 1.0, 1.0),
+//     );
 
-    text_renderer.render_text(
-        scene,
-        "Press Space to start",
-        330.0,
-        250.0,
-        0.8,
-        glm::vec4(1.0, time.time.sin(), time.time.cos(), 1.0),
-    );
-}
+//     text_renderer.render_text(
+//         scene,
+//         "Press Space to start",
+//         330.0,
+//         250.0,
+//         0.8,
+//         glm::vec4(1.0, time.time.sin(), time.time.cos(), 1.0),
+//     );
+// }
 
-fn occlusion_sprites(scene: &mut Scene) {
+fn occlusion_sprites(scene: &Scene) {
     if scene.query_single::<&GameStateSystem>().0 == GameState::Menu {
         let mut query = scene.query::<(&mut SpriteRenderer,)>();
         for (_, (sprite,)) in query.iter_mut() {
@@ -173,7 +177,7 @@ fn occlusion_sprites(scene: &mut Scene) {
     }
 }
 
-fn check_if_is_wait_screen(scene: &mut Scene) {
+fn check_if_is_wait_screen(scene: &Scene) {
     let game_score = scene.query_single::<&mut GameScore>();
     let time = scene.query_single::<&Time>();
     let mut query = scene.query::<(&mut SpriteRenderer, &Name)>();
@@ -192,7 +196,7 @@ fn check_if_is_wait_screen(scene: &mut Scene) {
     }
 }
 
-fn load_assets(scene: &mut Scene) {
+fn load_assets(scene: &Scene) {
     let asset_shader = scene.query_single::<&mut Asset<Shader>>();
     asset_shader
         .load(
@@ -226,7 +230,7 @@ fn load_assets(scene: &mut Scene) {
         .load(&scene, "assets/sounds/pong.wav")
         .expect("Error loading sound");
 }
-fn create_sprites(scene: &mut Scene) {
+fn create_sprites(scene: &Scene) {
     let textures_asset = scene.query_single::<&Asset<Texture>>();
     let shader_asset = scene.query_single::<&Asset<Shader>>();
 
@@ -301,7 +305,7 @@ fn create_sprites(scene: &mut Scene) {
     ));
 }
 
-fn ball_movement(scene: &mut Scene) {
+fn ball_movement(scene: &Scene) {
     let game_state = scene.query_single::<&mut GameStateSystem>();
     if game_state.0 == GameState::Menu {
         return;
@@ -322,7 +326,7 @@ fn ball_movement(scene: &mut Scene) {
     }
 }
 
-fn ball_collision_event(scene: &mut Scene) {
+fn ball_collision_event(scene: &Scene) {
     let game_state = scene.query_single::<&mut GameStateSystem>();
     if game_state.0 == GameState::Menu {
         return;
@@ -344,7 +348,7 @@ fn ball_collision_event(scene: &mut Scene) {
     }
 }
 
-fn ball_collision(scene: &mut Scene) {
+fn ball_collision(scene: &Scene) {
     let game_state = scene.query_single::<&mut GameStateSystem>();
     if game_state.0 == GameState::Menu {
         return;
@@ -369,7 +373,7 @@ fn ball_collision(scene: &mut Scene) {
     }
 }
 
-fn move_paddle_player(scene: &mut Scene) {
+fn move_paddle_player(scene: &Scene) {
     let game_state = scene.query_single::<&mut GameStateSystem>();
     if game_state.0 == GameState::Menu {
         return;
@@ -412,7 +416,7 @@ fn move_paddle_player(scene: &mut Scene) {
     }
 }
 
-fn setup_shader_projection(scene: &mut Scene) {
+fn setup_shader_projection(scene: &Scene) {
     let shader = scene.query_single::<&mut Asset<Shader>>();
     let shader = shader.get("default").unwrap();
     let ortho = glm::ortho(0.0, 800.0, 0.0, 600.0, -1.0, 1.0);
@@ -420,7 +424,7 @@ fn setup_shader_projection(scene: &mut Scene) {
     shader.set_mat4("u_projection", &ortho, scene.window_container.gl.clone());
 }
 
-fn check_winner(scene: &mut Scene) {
+fn check_winner(scene: &Scene) {
     let game_state = scene.query_single::<&mut GameStateSystem>();
     if game_state.0 == GameState::Menu {
         return;
@@ -438,24 +442,24 @@ fn check_winner(scene: &mut Scene) {
     }
 }
 
-fn render_text(scene: &mut Scene) {
+fn render_text(scene: &Scene) {
     let text_renderer = scene.query_single::<&mut Asset<TextRenderer>>();
     let text_renderer = text_renderer.get("Antonio-Regular").unwrap();
     let game_score = scene.query_single::<&GameScore>();
     if game_score.winner.is_some() {
         let result = game_score.winner.as_ref().unwrap();
-        text_renderer.render_text(
-            scene,
-            &format!("Winner: {}", result),
-            300.0,
-            300.0,
-            1.0,
-            if result == "Block1" {
-                glm::vec4(1.0, 0.0, 0.0, 1.0)
-            } else {
-                glm::vec4(0.0, 1.0, 0.0, 1.0)
-            },
-        );
+        // text_renderer.render_text(
+        //     scene,
+        //     &format!("Winner: {}", result),
+        //     300.0,
+        //     300.0,
+        //     1.0,
+        //     if result == "Block1" {
+        //         glm::vec4(1.0, 0.0, 0.0, 1.0)
+        //     } else {
+        //         glm::vec4(0.0, 1.0, 0.0, 1.0)
+        //     },
+        // );
 
         let mut query = scene.query::<(&mut SpriteRenderer, &Name, &mut Velocity)>();
         for (_, (sprite, name, velocity)) in query.iter_mut() {

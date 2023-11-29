@@ -3,8 +3,7 @@ use std::ops::{Deref, DerefMut};
 use super::{
     component::Component,
     entity::{Entity, EntityId},
-    errors::ComponentError,
-    scene::Scene,
+    errors::ComponentError, archetype::Archetype,
 };
 
 pub struct QueryFetched<T> {
@@ -36,29 +35,29 @@ pub trait FetchRaw<'a> {
 pub trait Fetch<'a> {
     type RawItem;
     type Item: IntoIterator;
-    fn fetch_single(scene: &'a Scene) -> Self::RawItem;
-    fn fetch(scene: &'a Scene) -> Self::Item;
+    fn fetch_single(archetype: &'a Archetype) -> Self::RawItem;
+    fn fetch(archetype: &'a Archetype) -> Self::Item;
 }
 
 pub trait Query<'a> {
     type Item;
-    fn get_components_in_all_entities(scene: &'a Scene) -> QueryFetched<Self::Item>;
+    fn get_components_in_all_entities(archetype: &'a Archetype) -> QueryFetched<Self::Item>;
 }
 
 impl<'a, T: Component> Fetch<'a> for &T {
     type RawItem = &'a T;
     type Item = Vec<(EntityId, Self::RawItem)>;
 
-    fn fetch(scene: &'a Scene) -> Self::Item {
-        scene
+    fn fetch(archetype: &'a Archetype) -> Self::Item {
+        archetype
             .entities
             .iter()
             .filter_map(|entity| entity.get_component::<T>().ok().map(|it| (entity.id, it)))
             .collect()
     }
 
-    fn fetch_single(scene: &'a Scene) -> Self::RawItem {
-        let a = scene
+    fn fetch_single(archetype: &'a Archetype) -> Self::RawItem {
+        let a = archetype
             .entities
             .iter()
             .find_map(|entity| {
@@ -77,8 +76,8 @@ impl<'a, T: Component> Fetch<'a> for &mut T {
     type RawItem = &'a mut T;
     type Item = Vec<(EntityId, Self::RawItem)>;
 
-    fn fetch(scene: &'a Scene) -> Self::Item {
-        scene
+    fn fetch(archetype: &'a Archetype) -> Self::Item {
+        archetype
             .entities
             .iter()
             .filter_map(|entity| {
@@ -90,8 +89,8 @@ impl<'a, T: Component> Fetch<'a> for &mut T {
             .collect()
     }
 
-    fn fetch_single(scene: &'a Scene) -> Self::RawItem {
-        scene
+    fn fetch_single(archetype: &'a Archetype) -> Self::RawItem {
+        archetype
             .entities
             .iter()
             .find_map(|entity| entity.get_component_mut::<T>().ok())
@@ -119,9 +118,9 @@ pub type QueryResult<T> = Vec<T>;
 
 impl<'a, A: FetchRaw<'a>> Query<'a> for (A,) {
     type Item = (EntityId, (A::RawItem,));
-    fn get_components_in_all_entities(scene: &'a Scene) -> QueryFetched<Self::Item> {
+    fn get_components_in_all_entities(archetype: &'a Archetype) -> QueryFetched<Self::Item> {
         let mut res = Vec::new();
-        for entity in &scene.entities {
+        for entity in &archetype.entities {
             if let Ok(a) = A::fetch(entity) {
                 res.push((entity.id, (a,)));
             }
@@ -135,9 +134,9 @@ macro_rules! impl_query_for_tuple {
     ($($name: ident),*) => {
         impl<'a, $($name: FetchRaw<'a>),*> Query<'a> for ($($name),*) {
             type Item = (EntityId, ($($name::RawItem),*));
-            fn get_components_in_all_entities(scene: &'a Scene) ->  QueryFetched<Self::Item> {
+            fn get_components_in_all_entities(archetype: &'a Archetype) ->  QueryFetched<Self::Item> {
                 let mut res = Vec::new();
-                for entity in &scene.entities {
+                for entity in &archetype.entities {
                     let matches = $($name::founded(entity))&&*;
                     if matches {
                         res.push((entity.id, ($($name::fetch(entity).unwrap()),*)));
