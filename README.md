@@ -20,7 +20,7 @@ The ECS architecture separates concerns by representing entities as a collection
 
 ## Obs:.
 
-- There are more traditional approaches developed by more people, such as Bevy, Amethist Specs...
+- There are more traditional approaches developed by more people, such as [Bevy](https://github.com/bevyengine/bevy), [Specs](https://github.com/amethyst/specs)...
 
 ## Getting Started
 
