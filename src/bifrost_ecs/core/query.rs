@@ -1,10 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
-use super::{
-    component::Component,
-    entity::{Entity, EntityId},
-    errors::ComponentError, archetype::Archetype,
-};
+use super::{archetype::Archetype, component::Component, entity::EntityStorage, errors::ComponentError};
 
 pub struct QueryFetched<T> {
     result: QueryResult<T>,
@@ -26,8 +22,8 @@ impl<T> DerefMut for QueryFetched<T> {
 
 pub trait FetchRaw<'a> {
     type RawItem;
-    fn fetch(entity: &'a Entity) -> Result<Self::RawItem, ComponentError>;
-    fn founded(entity: &'a Entity) -> bool {
+    fn fetch(entity: &'a EntityStorage) -> Result<Self::RawItem, ComponentError>;
+    fn founded(entity: &'a EntityStorage) -> bool {
         Self::fetch(entity).is_ok()
     }
 }
@@ -46,13 +42,13 @@ pub trait Query<'a> {
 
 impl<'a, T: Component> Fetch<'a> for &T {
     type RawItem = &'a T;
-    type Item = Vec<(EntityId, Self::RawItem)>;
+    type Item = Vec<(Self::RawItem,)>;
 
     fn fetch(archetype: &'a Archetype) -> Self::Item {
         archetype
             .entities
             .iter()
-            .filter_map(|entity| entity.get_component::<T>().ok().map(|it| (entity.id, it)))
+            .filter_map(|entity| entity.get_component::<T>().ok().map(|it| (it,)))
             .collect()
     }
 
@@ -60,12 +56,7 @@ impl<'a, T: Component> Fetch<'a> for &T {
         let a = archetype
             .entities
             .iter()
-            .find_map(|entity| {
-                entity
-                    .get_component::<T>()
-                    .ok()
-                    .map(|it|  it)
-            })
+            .find_map(|entity| entity.get_component::<T>().ok().map(|it| it))
             .unwrap();
 
         a
@@ -74,18 +65,13 @@ impl<'a, T: Component> Fetch<'a> for &T {
 
 impl<'a, T: Component> Fetch<'a> for &mut T {
     type RawItem = &'a mut T;
-    type Item = Vec<(EntityId, Self::RawItem)>;
+    type Item = Vec<(Self::RawItem,)>;
 
     fn fetch(archetype: &'a Archetype) -> Self::Item {
         archetype
             .entities
             .iter()
-            .filter_map(|entity| {
-                entity
-                    .get_component_mut::<T>()
-                    .ok()
-                    .map(|it| (entity.id, it))
-            })
+            .filter_map(|entity| entity.get_component_mut::<T>().ok().map(|it| (it,)))
             .collect()
     }
 
@@ -101,7 +87,7 @@ impl<'a, T: Component> Fetch<'a> for &mut T {
 impl<'a, T: Component> FetchRaw<'a> for &T {
     type RawItem = &'a T;
 
-    fn fetch(entity: &'a Entity) -> Result<Self::RawItem, ComponentError> {
+    fn fetch(entity: &'a EntityStorage) -> Result<Self::RawItem, ComponentError> {
         entity.get_component::<T>()
     }
 }
@@ -109,7 +95,7 @@ impl<'a, T: Component> FetchRaw<'a> for &T {
 impl<'a, T: Component> FetchRaw<'a> for &mut T {
     type RawItem = &'a mut T;
 
-    fn fetch(entity: &'a Entity) -> Result<Self::RawItem, ComponentError> {
+    fn fetch(entity: &'a EntityStorage) -> Result<Self::RawItem, ComponentError> {
         entity.get_component_mut::<T>()
     }
 }
@@ -117,12 +103,12 @@ impl<'a, T: Component> FetchRaw<'a> for &mut T {
 pub type QueryResult<T> = Vec<T>;
 
 impl<'a, A: FetchRaw<'a>> Query<'a> for (A,) {
-    type Item = (EntityId, (A::RawItem,));
+    type Item = (A::RawItem,);
     fn get_components_in_all_entities(archetype: &'a Archetype) -> QueryFetched<Self::Item> {
         let mut res = Vec::new();
         for entity in &archetype.entities {
             if let Ok(a) = A::fetch(entity) {
-                res.push((entity.id, (a,)));
+                res.push((a,));
             }
         }
 
@@ -133,13 +119,13 @@ impl<'a, A: FetchRaw<'a>> Query<'a> for (A,) {
 macro_rules! impl_query_for_tuple {
     ($($name: ident),*) => {
         impl<'a, $($name: FetchRaw<'a>),*> Query<'a> for ($($name),*) {
-            type Item = (EntityId, ($($name::RawItem),*));
+            type Item = ($($name::RawItem),*);
             fn get_components_in_all_entities(archetype: &'a Archetype) ->  QueryFetched<Self::Item> {
                 let mut res = Vec::new();
                 for entity in &archetype.entities {
                     let matches = $($name::founded(entity))&&*;
                     if matches {
-                        res.push((entity.id, ($($name::fetch(entity).unwrap()),*)));
+                        res.push(($($name::fetch(entity).unwrap()),*));
                     }
                 }
 

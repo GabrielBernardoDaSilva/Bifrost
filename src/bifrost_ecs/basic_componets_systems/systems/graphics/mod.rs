@@ -10,7 +10,7 @@ use nalgebra_glm as glm;
 pub fn render_sprite(scene: &Scene) {
     let gl = &scene.window_container.gl;
     let query_sprite = scene.query::<(&mut SpriteRenderer,)>();
-    for (_, (sprite,)) in query_sprite.iter() {
+    for (sprite,) in query_sprite.iter() {
         sprite.material.use_material(gl.clone());
 
         let mut model = glm::Mat4::identity();

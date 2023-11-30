@@ -149,25 +149,25 @@ impl ArchetypeError{
 
 impl Display for EntityNotFounded{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Entity {} not founded", self.0)
+        write!(f, "EntityStorage {} not founded", self.0)
     }
 }
 
 impl Debug for EntityNotFounded{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Entity {} not founded", self.0)
+        write!(f, "EntityStorage {} not founded", self.0)
     }
 }
 
 impl Display for EntityAlreadyHaveComponent{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Entity {} already have component {}", self.0, self.1)
+        write!(f, "EntityStorage {} already have component {}", self.0, self.1)
     }
 }
 
 impl Debug for EntityAlreadyHaveComponent{
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Entity {} already have component {}", self.0, self.1)
+        write!(f, "EntityStorage {} already have component {}", self.0, self.1)
     }
 }
 

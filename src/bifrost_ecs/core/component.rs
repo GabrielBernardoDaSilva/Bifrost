@@ -19,14 +19,14 @@ pub trait ComponentBundle {
     fn add_components_to_entity(
         self,
         unique_instances: &HashSet<TypeId>,
-        entity: &mut entity::Entity,
+        entity: &mut entity::EntityStorage,
     );
 }
 
 macro_rules! impl_components_bundle_for_tuples {
     ($(($name: ident, $index: tt)),*) => {
         impl<$($name: Component), *> ComponentBundle for ($($name,)*){
-            fn add_components_to_entity(self, unique_instances: &HashSet<TypeId>, entity: &mut entity::Entity) {
+            fn add_components_to_entity(self, unique_instances: &HashSet<TypeId>, entity: &mut entity::EntityStorage) {
                 $(
                     // check if component is unique
                     if unique_instances.contains(&TypeId::of::<$name>()) {

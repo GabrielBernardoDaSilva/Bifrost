@@ -20,10 +20,10 @@ use crate::{
 };
 
 use super::{
-    archetype::{self, Archetype},
+    archetype::Archetype,
     component::{Component, ComponentBundle},
-    entity::{Entity, EntityId, FetchItem},
-    errors::{ComponentError, ComponentNotFounded},
+    entity::{Entity, EntityId, EntityStorage, FetchItem},
+    errors::ArchetypeError,
     lifetime_system_exec::LifetimeSystemExec,
     query::{Fetch, Query, QueryFetched},
 };
@@ -58,7 +58,8 @@ macro_rules! system_mut {
 pub struct Scene {
     pub(crate) archetype: Arc<RwLock<Archetype>>,
     pub(crate) systems: Arc<Mutex<HashMap<LifetimeSystemExec, Vec<Box<dyn Fn(&Scene)>>>>>,
-    pub(crate) systems_mut: Arc<Mutex<HashMap<LifetimeSystemExec, Vec<Box<dyn FnMut(&mut Scene)>>>>>,
+    pub(crate) systems_mut:
+        Arc<Mutex<HashMap<LifetimeSystemExec, Vec<Box<dyn FnMut(&mut Scene)>>>>>,
     pub events: Arc<RwLock<EventStorage>>,
     is_running: bool,
     pub window_container: Window,
@@ -71,7 +72,6 @@ impl Scene {
         systems.insert(LifetimeSystemExec::OnBegin, Vec::new());
         systems.insert(LifetimeSystemExec::OnUpdate, Vec::new());
         systems.insert(LifetimeSystemExec::OnFinish, Vec::new());
-
 
         let mut systems_mut = HashMap::new();
         systems_mut.insert(LifetimeSystemExec::OnBegin, Vec::new());
@@ -130,14 +130,17 @@ impl Scene {
         let mut read = archetype_arc.try_read().unwrap();
         let archetype = read.inner();
         let archetype = unsafe { std::mem::transmute::<&Archetype, &'a Archetype>(archetype) };
+
+        // Then you can call the `run` method on `tst` like this:
         archetype.query::<T>()
     }
 
     pub fn spawn(&self, cb: impl ComponentBundle) {
         let archetype_arc = self.archetype.clone();
         let mut archetype = archetype_arc.try_write().unwrap();
-        let mut e = Entity::new(archetype.len() as u32);
+        let mut e = EntityStorage::new(archetype.len() as u32);
         e.add_components(&self.unique_instances, cb);
+        e.add_component(Entity(e.id)).unwrap();
         archetype.spawn(e);
     }
 
@@ -164,29 +167,16 @@ impl Scene {
             .remove_component_from_entity::<T>(entity_id);
     }
 
-    // pub fn add_components_to_entity(
-    //     &mut self,
-    //     entity_id: EntityId,
-    //     component: impl ComponentBundle,
-    // ) {
-    //     if let Some(entity) = self.entities.iter_mut().find(|e| e.id == entity_id) {
-    //         entity.add_components(&self.unique_instances, component);
-    //     }
-    // }
-
-    // pub fn add_component_to_entity<T: Component>(
-    //     &mut self,
-    //     entity_id: EntityId,
-    //     component: T,
-    // ) -> Result<(), ComponentError> {
-    //     if let Some(entity) = self.entities.iter_mut().find(|e| e.id == entity_id) {
-    //         entity.add_component(component)
-    //     } else {
-    //         Err(ComponentError::ComponentNotFoundedError(
-    //             ComponentNotFounded::new::<T>(),
-    //         ))
-    //     }
-    // }
+    pub fn add_component_to_entity<T: Component>(
+        &mut self,
+        entity_id: EntityId,
+        component: T,
+    ) -> Result<(), ArchetypeError> {
+        let archetype_arc = self.archetype.clone();
+        let mut archetype = archetype_arc.try_write().unwrap();
+        archetype.add_component_to_entity(entity_id, component)?;
+        Ok(())
+    }
 
     pub fn add_system(
         &mut self,
@@ -263,7 +253,6 @@ impl Scene {
         for system in system {
             system(self);
         }
-        
 
         let systems_mut = self.systems_mut.clone();
         let mut lock = systems_mut.lock().unwrap();

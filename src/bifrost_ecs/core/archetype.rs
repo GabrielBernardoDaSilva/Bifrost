@@ -1,14 +1,14 @@
-use std::error::Error;
+
 
 use super::{
     component::Component,
-    entity::Entity,
-    errors::{ArchetypeError, ComponentError, EntityAlreadyHaveComponent, EntityNotFounded},
+    entity::EntityStorage,
+    errors::{ArchetypeError, EntityAlreadyHaveComponent, EntityNotFounded},
     query::{Fetch, Query, QueryFetched},
 };
 
 pub struct Archetype {
-    pub entities: Vec<Entity>,
+    pub entities: Vec<EntityStorage>,
 }
 
 impl Archetype {
@@ -18,7 +18,7 @@ impl Archetype {
         }
     }
 
-    pub fn spawn(&mut self, entity: Entity) {
+    pub fn spawn(&mut self, entity: EntityStorage) {
         self.entities.push(entity);
     }
 
@@ -50,7 +50,7 @@ impl Archetype {
         ))
     }
 
-    pub fn get_entity(&self, entity_id: u32) -> Option<&Entity> {
+    pub fn get_entity(&self, entity_id: u32) -> Option<&EntityStorage> {
         self.entities.iter().find(|e| e.id == entity_id)
     }
 

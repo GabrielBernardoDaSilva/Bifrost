@@ -5,3 +5,4 @@ pub mod scene;
 pub mod query;
 pub mod lifetime_system_exec;
 pub mod archetype;
+pub mod system;

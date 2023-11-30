@@ -37,7 +37,7 @@ impl<T: Component> AsAny for RwLock<T> {
 // }
 
 #[derive(Debug)]
-pub struct Entity {
+pub struct EntityStorage {
     pub id: EntityId,
     pub components: HashMap<TypeId, Box<dyn AsAny + Send + Sync>>,
 }
@@ -60,7 +60,7 @@ impl<'a, 'scene_borrow, T: 'a> FetchItem<'a> for RwLockWriteGuard<'scene_borrow,
     }
 }
 
-impl Entity {
+impl EntityStorage {
     pub fn new(id: EntityId) -> Self {
         Self {
             id,
@@ -147,3 +147,6 @@ impl Entity {
         self.components.remove(&type_id);
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Entity(pub EntityId);
