@@ -1,9 +1,8 @@
 # Bifrost ECS Engine
 
 <p align="center">
-  <img src="bifrost.png" alt="Bifrost ECS Engine">
+  <img src="logo.png" alt="Bifrost ECS Engine">
 </p>
-
 
 ## Overview
 
@@ -19,6 +18,10 @@ The ECS architecture separates concerns by representing entities as a collection
 - **Flexible System Execution**: Enables the creation of systems that process entities based on their components, facilitating behavior implementation.
 - **Scalable and Performant**: Designed to handle large numbers of entities and components efficiently, ensuring smooth performance in games and simulations.
 
+## Obs:.
+
+- There are more traditional approaches developed by more people, such as Bevy, Amethist Specs...
+
 ## Getting Started
 
 ### Installation
@@ -28,3 +31,6 @@ To use Bifrost ECS Engine in your Rust project, add it to your `Cargo.toml`:
 ```toml
 [dependencies]
 bifrost-ecs = "0.1.0"
+
+
+```
