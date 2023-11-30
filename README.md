@@ -1,6 +1,9 @@
 # Bifrost ECS Engine
 
-![Bifrost ECS Engine](logo.png)
+<p align="center">
+  <img src="bifrost.png" alt="Bifrost ECS Engine">
+</p>
+
 
 ## Overview
 
