@@ -6,12 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bytemuck = "1.7.0"
-nalgebra-glm = "0.18.0"
-image = "0.24.7"
-rand = "0.8.5"
-freetype-rs = "0.34.0"
-
 
 [[example]]
 name = "pong"

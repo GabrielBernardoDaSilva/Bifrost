@@ -4,8 +4,6 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-use crate::bifrost_ecs::resources::{model::Model, Asset};
-
 use super::{
     archetype::Archetype,
     component::{Component, ComponentBundle},
@@ -54,7 +52,6 @@ pub struct Scene {
     pub events: Arc<RwLock<EventStorage>>,
     pub countdowns: Arc<RwLock<Timers>>,
     is_running: bool,
-    // pub window_container: Window,
     unique_instances: HashSet<TypeId>,
 }
 
@@ -89,7 +86,7 @@ impl Scene {
         scene.spawn((
             // Asset::<Shader>::new(),
             // Asset::<Texture>::new(),
-            Asset::<Model>::new(),
+            // Asset::<Model>::new(),
             // Asset::<TextRenderer>::new(),
             // Asset::<Sound>::new(),
             // Input::new(keys),
@@ -102,7 +99,7 @@ impl Scene {
         // unique_instances.insert(TypeId::of::<Input<Mouse>>());
         // unique_instances.insert(TypeId::of::<Asset<Shader>>());
         // unique_instances.insert(TypeId::of::<Asset<Texture>>());
-        unique_instances.insert(TypeId::of::<Asset<Model>>());
+        // unique_instances.insert(TypeId::of::<Asset<Model>>());
         // unique_instances.insert(TypeId::of::<Asset<TextRenderer>>());
         unique_instances.insert(TypeId::of::<Time>());
         scene.unique_instances = unique_instances;
@@ -225,7 +222,7 @@ impl Scene {
         self
     }
 
-    fn run_system_on_begin(&mut self) {
+    pub fn run_system_on_begin(&mut self) {
         let systems = self.systems.clone();
         let lock = systems.lock().unwrap();
         let systems = lock.get(&LifetimeSystemExec::OnBegin).unwrap();
@@ -241,7 +238,7 @@ impl Scene {
         }
     }
 
-    fn run_system_on_update(&mut self) {
+    pub fn run_system_on_update(&mut self) {
         let systems = self.systems.clone();
         let lock = systems.lock().unwrap();
         let system = lock.get(&LifetimeSystemExec::OnUpdate).unwrap();
@@ -257,7 +254,7 @@ impl Scene {
         }
     }
 
-    fn run_system_on_finish(&mut self) {
+    pub fn run_system_on_finish(&mut self) {
         let systems = self.systems.clone();
         let lock = systems.lock().unwrap();
         let systems = lock.get(&LifetimeSystemExec::OnFinish).unwrap();

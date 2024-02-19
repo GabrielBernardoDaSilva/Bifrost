@@ -5,7 +5,7 @@ use self::asset_loader_errors::AssetLoaderError;
 use super::core::scene::Scene;
 
 pub mod asset_loader_errors;
-pub mod model;
+
 
 
 pub trait AssetLoader {
