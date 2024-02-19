@@ -4,28 +4,19 @@ use std::{
     sync::{Arc, Mutex, RwLock},
 };
 
-use glfw::Context;
-use glow::HasContext;
-
-use crate::{
-    bifrost_ecs::{
-        inputs::{keys::Keys, mouse::Mouse, Input},
-        resources::{
-            model::Model, shader::Shader, sound::Sound, text_renderer::TextRenderer,
-            texture::Texture, time::Time, Asset,
-        },
-        window::Window,
-    },
-    resources::event::{EventComponent, EventStorage},
-};
+use crate::bifrost_ecs::resources::{model::Model, Asset};
 
 use super::{
     archetype::Archetype,
     component::{Component, ComponentBundle},
+    countdown::Timers,
     entity::{Entity, EntityId, EntityStorage, FetchItem},
     errors::ArchetypeError,
+    event::{EventComponent, EventStorage},
     lifetime_system_exec::LifetimeSystemExec,
+    plugins::Plugin,
     query::{Fetch, Query, QueryFetched},
+    time::Time,
 };
 
 pub type SystemFunc = (Box<dyn Fn(&Scene)>, LifetimeSystemExec);
@@ -61,8 +52,9 @@ pub struct Scene {
     pub(crate) systems_mut:
         Arc<Mutex<HashMap<LifetimeSystemExec, Vec<Box<dyn FnMut(&mut Scene)>>>>>,
     pub events: Arc<RwLock<EventStorage>>,
+    pub countdowns: Arc<RwLock<Timers>>,
     is_running: bool,
-    pub window_container: Window,
+    // pub window_container: Window,
     unique_instances: HashSet<TypeId>,
 }
 
@@ -83,34 +75,35 @@ impl Scene {
             is_running: false,
             systems: Arc::new(Mutex::new(systems)),
             systems_mut: Arc::new(Mutex::new(systems_mut)),
-            window_container: Window::new("Prometheus", 800, 600),
+            // window_container: Window::new("Prometheus", 800, 600),
             unique_instances: HashSet::new(),
             events: Arc::new(RwLock::new(EventStorage::new())),
+            countdowns: Arc::new(RwLock::new(Timers::new())),
         };
 
         // resources
 
-        let keys = Keys::new();
-        let mouse = Mouse::new();
+        // let keys = Keys::new();
+        // let mouse = Mouse::new();
 
         scene.spawn((
-            Asset::<Shader>::new(),
-            Asset::<Texture>::new(),
+            // Asset::<Shader>::new(),
+            // Asset::<Texture>::new(),
             Asset::<Model>::new(),
-            Asset::<TextRenderer>::new(),
-            Asset::<Sound>::new(),
-            Input::new(keys),
-            Input::new(mouse),
+            // Asset::<TextRenderer>::new(),
+            // Asset::<Sound>::new(),
+            // Input::new(keys),
+            // Input::new(mouse),
             Time::new(),
         ));
 
         let mut unique_instances = HashSet::new();
-        unique_instances.insert(TypeId::of::<Input<Keys>>());
-        unique_instances.insert(TypeId::of::<Input<Mouse>>());
-        unique_instances.insert(TypeId::of::<Asset<Shader>>());
-        unique_instances.insert(TypeId::of::<Asset<Texture>>());
+        // unique_instances.insert(TypeId::of::<Input<Keys>>());
+        // unique_instances.insert(TypeId::of::<Input<Mouse>>());
+        // unique_instances.insert(TypeId::of::<Asset<Shader>>());
+        // unique_instances.insert(TypeId::of::<Asset<Texture>>());
         unique_instances.insert(TypeId::of::<Asset<Model>>());
-        unique_instances.insert(TypeId::of::<Asset<TextRenderer>>());
+        // unique_instances.insert(TypeId::of::<Asset<TextRenderer>>());
         unique_instances.insert(TypeId::of::<Time>());
         scene.unique_instances = unique_instances;
 
@@ -135,13 +128,15 @@ impl Scene {
         archetype.query::<T>()
     }
 
-    pub fn spawn(&self, cb: impl ComponentBundle) {
+    pub fn spawn(&self, cb: impl ComponentBundle) -> &Self {
         let archetype_arc = self.archetype.clone();
         let mut archetype = archetype_arc.try_write().unwrap();
         let mut e = EntityStorage::new(archetype.len() as u32);
         e.add_components(&self.unique_instances, cb);
         e.add_component(Entity(e.id)).unwrap();
         archetype.spawn(e);
+
+        self
     }
 
     pub fn spawn_batch(&mut self, cbs: Vec<impl ComponentBundle>) -> &mut Self {
@@ -287,27 +282,23 @@ impl Scene {
     pub fn run_forever(&mut self) {
         self.is_running = true;
         self.run_system_on_begin();
-        while self.is_running && !self.window_container.window.should_close() {
-            self.window_container.window.glfw.poll_events();
-            for (_, event) in glfw::flush_messages(&self.window_container.events) {
-                let keys = self.query_single::<&mut Input<Keys>>();
-                let mouse = self.query_single::<&mut Input<Mouse>>();
-                self.window_container.input_handler(event, keys, mouse);
-            }
-            unsafe {
-                self.window_container.gl.clear(glow::COLOR_BUFFER_BIT);
-            };
+        while self.is_running {
+            let time = self.query_single::<&Time>();
+            let delta_time = time.delta_time;
+            let r_timers = self.countdowns.clone();
+            r_timers
+                .try_write()
+                .unwrap()
+                .update(delta_time.as_secs_f32(), self);
+
             self.run_system_on_update();
             self.query_single::<&mut Time>().update();
-
-            self.window_container.window.swap_buffers();
         }
         self.run_system_on_finish();
     }
 
     pub fn stop(&mut self) {
         self.is_running = false;
-        self.window_container.window.set_should_close(true);
     }
 
     pub fn add_event<T: EventComponent>(&mut self) -> &mut Self {
@@ -328,5 +319,9 @@ impl Scene {
     pub fn clear_event<T: EventComponent>(&self) {
         let events = self.events.clone();
         events.try_write().unwrap().clear::<T>();
+    }
+
+    pub fn add_plugin(&mut self, plugin: impl Plugin) {
+        plugin.build_plugin(self);
     }
 }

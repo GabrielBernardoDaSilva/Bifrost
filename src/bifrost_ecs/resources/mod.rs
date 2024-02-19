@@ -6,12 +6,7 @@ use super::core::scene::Scene;
 
 pub mod asset_loader_errors;
 pub mod model;
-pub mod shader;
-pub mod texture;
-pub mod time;
-pub mod text_renderer;
-pub mod sound;
-pub mod event;
+
 
 pub trait AssetLoader {
     type Asset;
