@@ -1,7 +1,6 @@
 use std::{
     any::TypeId,
     collections::{HashMap, HashSet},
-    fmt::Debug,
     sync::{RwLock, RwLockReadGuard, RwLockWriteGuard},
 };
 
@@ -25,7 +24,6 @@ impl<T: Component> AsAny for RwLock<T> {
     }
 }
 
-
 // impl<T: Debug + 'static> AsAny for T{
 //     fn as_any(&self) -> &dyn std::any::Any {
 //         self
@@ -36,7 +34,6 @@ impl<T: Component> AsAny for RwLock<T> {
 //     }
 // }
 
-#[derive(Debug)]
 pub struct EntityStorage {
     pub id: EntityId,
     pub components: HashMap<TypeId, Box<dyn AsAny + Send + Sync>>,
@@ -68,7 +65,7 @@ impl EntityStorage {
         }
     }
 
-    pub fn get_component<'a, T: 'static + Debug>(&'a self) -> Result<&'a T, ComponentError> {
+    pub fn get_component<'a, T: 'static>(&'a self) -> Result<&'a T, ComponentError> {
         let type_id = TypeId::of::<T>();
         if let Some(component_rw_ref) = self.components.get(&type_id) {
             if let Some(read) = component_rw_ref.as_any().downcast_ref::<RwLock<T>>() {
@@ -148,5 +145,5 @@ impl EntityStorage {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Entity(pub EntityId);

@@ -1,13 +1,11 @@
 use std::{
     any::TypeId,
     collections::{HashMap, VecDeque},
-    fmt::Debug,
     ops::{Deref, DerefMut},
 };
 
 use crate::core::component::AsAny;
 
-#[derive(Debug)]
 pub struct Event<T: EventComponent> {
     data: VecDeque<T>,
 }
@@ -65,7 +63,6 @@ impl<T: EventComponent> AsAny for Event<T> {
 
 pub trait EventComponent: 'static + AsAny + Send + Sync {}
 
-#[derive(Debug)]
 pub struct EventStorage {
     events: HashMap<TypeId, Box<dyn AsAny + Send + Sync>>,
 }

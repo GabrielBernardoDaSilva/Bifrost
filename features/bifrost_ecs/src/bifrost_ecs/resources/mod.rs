@@ -13,7 +13,7 @@ pub trait AssetLoader {
     fn load(scene: &Scene, path: &str) -> Result<Arc<Self::Asset>, AssetLoaderError>;
 }
 
-#[derive(Debug)]
+
 pub struct Asset<T: AssetLoader> {
     loaded_data: HashMap<String, Arc<T::Asset>>,
 }

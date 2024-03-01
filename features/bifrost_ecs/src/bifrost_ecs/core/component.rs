@@ -1,16 +1,15 @@
 use std::{
     any::{Any, TypeId},
     collections::HashSet,
-    fmt::Debug,
 };
 
 use super::entity;
 
-pub trait Component: 'static + Send + Sync + Debug {}
+pub trait Component: 'static + Send + Sync {}
 
-impl<T: 'static + Send + Sync + Debug> Component for T {}
+impl<T: 'static + Send + Sync> Component for T {}
 
-pub trait AsAny: Debug {
+pub trait AsAny {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }

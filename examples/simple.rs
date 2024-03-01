@@ -1,13 +1,12 @@
+use bifrost_derives::EventComponent;
 use bifrost_ecs::core::{
-    component::AsAny,
     countdown::{self, Timer, TimerCallback},
-    event::EventComponent,
     scene,
 };
 
-#[derive(Debug)]
+
 struct Name(String);
-#[derive(Debug)]
+
 struct Position(f32, f32);
 
 pub struct Explosion {}
@@ -19,21 +18,9 @@ impl TimerCallback for Explosion {
     }
 }
 
-#[derive(Debug)]
+#[derive(EventComponent)]
 pub struct CollisionEvent {
     pub is_colliding: bool,
-}
-
-impl EventComponent for CollisionEvent {}
-
-impl AsAny for CollisionEvent {
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
 }
 
 fn query(scene: &mut scene::Scene) {

@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use super::scene;
+
 #[derive(Debug)]
 pub enum TimerScheduler {
     Once,

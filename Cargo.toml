@@ -1,13 +1,19 @@
+
+
 [package]
-name = "bifrost_ecs"
+name = "bifrost"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+resolver = "2"
+members = ["features/*"]
 
 [dependencies]
+bifrost_ecs = { path = "features/bifrost_ecs", default-features = true }
+bifrost_derives = { path = "features/bifrost_derives", default-features = true }
 
 [[example]]
-name = "pong"
-path = "examples/pong.rs"
-
+name = "simple"
+path = "examples/simple.rs"
