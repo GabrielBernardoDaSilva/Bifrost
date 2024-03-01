@@ -24,15 +24,6 @@ impl<T: Component> AsAny for RwLock<T> {
     }
 }
 
-// impl<T: Debug + 'static> AsAny for T{
-//     fn as_any(&self) -> &dyn std::any::Any {
-//         self
-//     }
-
-//     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-//         self
-//     }
-// }
 
 pub struct EntityStorage {
     pub id: EntityId,
