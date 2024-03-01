@@ -29,7 +29,7 @@ macro_rules! impl_components_bundle_for_tuples {
                 $(
                     // check if component is unique
                     if unique_instances.contains(&TypeId::of::<$name>()) {
-                        panic!("Component {:?} is unique istance held by the engine!", stringify!($name));
+                        panic!("Component {:?} is unique instance held by the engine!", stringify!($name));
                     }
                     entity.add_component(self.$index).unwrap();
                 )*
