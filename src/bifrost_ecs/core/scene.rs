@@ -79,28 +79,11 @@ impl Scene {
         };
 
         // resources
-
-        // let keys = Keys::new();
-        // let mouse = Mouse::new();
-
         scene.spawn((
-            // Asset::<Shader>::new(),
-            // Asset::<Texture>::new(),
-            // Asset::<Model>::new(),
-            // Asset::<TextRenderer>::new(),
-            // Asset::<Sound>::new(),
-            // Input::new(keys),
-            // Input::new(mouse),
             Time::new(),
         ));
 
         let mut unique_instances = HashSet::new();
-        // unique_instances.insert(TypeId::of::<Input<Keys>>());
-        // unique_instances.insert(TypeId::of::<Input<Mouse>>());
-        // unique_instances.insert(TypeId::of::<Asset<Shader>>());
-        // unique_instances.insert(TypeId::of::<Asset<Texture>>());
-        // unique_instances.insert(TypeId::of::<Asset<Model>>());
-        // unique_instances.insert(TypeId::of::<Asset<TextRenderer>>());
         unique_instances.insert(TypeId::of::<Time>());
         scene.unique_instances = unique_instances;
 

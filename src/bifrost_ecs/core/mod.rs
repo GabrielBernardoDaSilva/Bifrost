@@ -9,3 +9,4 @@ pub mod plugins;
 pub mod event;
 pub mod countdown;
 pub mod time;
+pub mod pipeline_executor;
